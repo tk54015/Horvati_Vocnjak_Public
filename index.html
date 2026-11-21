@@ -7,13 +7,13 @@
   <meta name="theme-color" content="#4f8f4f">
   <link rel="icon" href="icons/tree.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=1a">
+  <link rel="stylesheet" href="css/style.css?v=1b">
 </head>
 <body>
   <div id="map"></div>
 
   <!-- gornja traka -->
-  <header id="topbar">
+  <header id="topbar" class="hidden">
     <div class="tb-brand">🌳 <b data-i18n="app.name">Horvati voćnjak</b></div>
     <div id="orchard-picker" class="hidden">
       <label for="orchard-select" class="sr-only" data-i18n="top.orchards">Moji voćnjaci</label>
@@ -25,10 +25,11 @@
       <button id="btn-new" type="button" class="tb-btn" data-i18n="top.new">➕ Novi voćnjak</button>
       <button id="btn-delete" type="button" class="tb-btn danger hidden" data-i18n="top.delete">🗑️ Obriši voćnjak</button>
       <button id="lang-btn" type="button" class="tb-btn lang">English</button>
+      <span class="tb-user"><span id="user-email"></span> <button id="btn-logout" type="button" class="tb-btn" data-i18n="auth.logout">Odjava</button></span>
     </div>
   </header>
 
-  <form id="search-form" autocomplete="off">
+  <form id="search-form" class="hidden" autocomplete="off">
     <input id="search-input" type="search" data-i18n-ph="search.ph" placeholder="Traži mjesto ili adresu…">
     <button type="submit" data-i18n="search.btn">Traži</button>
   </form>
@@ -71,9 +72,34 @@
       <button id="btn-help" type="button" class="ep-btn" data-i18n="edit.howto">❔ Pomoć</button>
       <button id="btn-finish" type="button" class="btn-primary" data-i18n="edit.finish">✓ Završi</button>
     </div>
-    <p class="ep-note" data-i18n="saved.local"></p>
+    <p class="ep-note" data-i18n="saved.cloud"></p>
   </aside>
   <input id="kml-file" type="file" accept=".kml,.kmz,application/vnd.google-earth.kml+xml" hidden>
+
+  <!-- prijava -->
+  <div id="auth-modal" class="modal hidden">
+    <form id="auth-form" class="card" novalidate>
+      <div class="auth-head">
+        <h1>🌳 <span data-i18n="app.name">Horvati voćnjak</span></h1>
+        <button id="auth-lang" type="button" class="tb-btn lang" data-i18n="lang.switch">English</button>
+      </div>
+      <p data-i18n="app.tagline"></p>
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-mode="login" data-i18n="auth.tabLogin">Prijava</button>
+        <button type="button" class="auth-tab" data-mode="register" data-i18n="auth.tabRegister">Registracija</button>
+      </div>
+      <label for="auth-email" data-i18n="auth.email">E-mail</label>
+      <input id="auth-email" type="email" autocomplete="email" required>
+      <label for="auth-password" data-i18n="auth.password">Lozinka</label>
+      <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required>
+      <small data-i18n="auth.passwordHint"></small>
+      <div id="auth-msg" class="auth-msg hidden" role="alert"></div>
+      <button id="auth-submit" type="submit" class="btn-primary">Prijavi se</button>
+      <button id="auth-forgot" type="button" class="link-btn" data-i18n="auth.forgot">Zaboravljena lozinka?</button>
+      <div class="auth-or"><span data-i18n="auth.or">ili</span></div>
+      <button id="auth-google" type="button" class="btn-google"><b>G</b> <span data-i18n="auth.google">Prijava s Googleom</span></button>
+    </form>
+  </div>
 
   <!-- dobrodošlica -->
   <div id="welcome" class="modal hidden">
@@ -141,6 +167,6 @@
   <div id="toast" class="hidden" role="status"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="js/app.js?v=1a"></script>
+  <script type="module" src="js/app.js?v=1b"></script>
 </body>
 </html>
