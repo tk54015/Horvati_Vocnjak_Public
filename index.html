@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Horvati voćnjak</title>
+  <meta name="theme-color" content="#4f8f4f">
+  <link rel="icon" href="icons/tree.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css?v=1a">
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- gornja traka -->
+  <header id="topbar">
+    <div class="tb-brand">🌳 <b data-i18n="app.name">Horvati voćnjak</b></div>
+    <div id="orchard-picker" class="hidden">
+      <label for="orchard-select" class="sr-only" data-i18n="top.orchards">Moji voćnjaci</label>
+      <select id="orchard-select"></select>
+    </div>
+    <span id="orchard-info" class="tb-info hidden"></span>
+    <div class="tb-actions">
+      <button id="btn-edit" type="button" class="tb-btn hidden" data-i18n="top.edit">✏️ Uredi granicu</button>
+      <button id="btn-new" type="button" class="tb-btn" data-i18n="top.new">➕ Novi voćnjak</button>
+      <button id="btn-delete" type="button" class="tb-btn danger hidden" data-i18n="top.delete">🗑️ Obriši voćnjak</button>
+      <button id="lang-btn" type="button" class="tb-btn lang">English</button>
+    </div>
+  </header>
+
+  <form id="search-form" autocomplete="off">
+    <input id="search-input" type="search" data-i18n-ph="search.ph" placeholder="Traži mjesto ili adresu…">
+    <button type="submit" data-i18n="search.btn">Traži</button>
+  </form>
+
+  <!-- panel za uređivanje granice -->
+  <aside id="edit-panel" class="hidden">
+    <h2 data-i18n="edit.title">Granica zemljišta</h2>
+    <div class="ep-area"><span data-i18n="edit.area">Površina</span>: <b id="edit-area">–</b></div>
+    <div class="method-tabs" role="tablist">
+      <button type="button" class="method-tab" data-method="rect" data-i18n="method.rect">Pravokutnik</button>
+      <button type="button" class="method-tab" data-method="draw" data-i18n="method.draw">Iscrtano</button>
+      <button type="button" class="method-tab" data-method="kml" data-i18n="method.kml">Iz KML-a</button>
+    </div>
+
+    <section class="method-pane" data-pane="rect">
+      <p class="ep-help" data-i18n="edit.rectHelp"></p>
+      <div class="ep-row">
+        <label><span data-i18n="edit.width">Širina (m)</span><input id="rect-w" type="text" inputmode="decimal"></label>
+        <label><span data-i18n="edit.length">Dužina (m)</span><input id="rect-h" type="text" inputmode="decimal"></label>
+      </div>
+      <div class="ep-meta"><span data-i18n="edit.rotation">Zakrenuto</span>: <b id="rect-rot">0°</b></div>
+    </section>
+
+    <section class="method-pane hidden" data-pane="draw">
+      <p class="ep-help" data-i18n="edit.drawHelp"></p>
+      <div class="ep-meta"><span data-i18n="edit.points">Točaka</span>: <b id="draw-count">0</b></div>
+      <div class="ep-row">
+        <button id="draw-undo" type="button" class="ep-btn" data-i18n="edit.drawUndo">↶ Ukloni zadnju točku</button>
+        <button id="draw-clear" type="button" class="ep-btn" data-i18n="edit.drawClear">Počni ispočetka</button>
+      </div>
+    </section>
+
+    <section class="method-pane hidden" data-pane="kml">
+      <p class="ep-help" data-i18n="edit.kmlHelp"></p>
+      <button id="kml-pick" type="button" class="ep-btn" data-i18n="edit.kmlChoose">Odaberi KML datoteku</button>
+      <div id="kml-count" class="ep-meta"></div>
+    </section>
+
+    <div class="ep-foot">
+      <button id="btn-help" type="button" class="ep-btn" data-i18n="edit.howto">❔ Pomoć</button>
+      <button id="btn-finish" type="button" class="btn-primary" data-i18n="edit.finish">✓ Završi</button>
+    </div>
+    <p class="ep-note" data-i18n="saved.local"></p>
+  </aside>
+  <input id="kml-file" type="file" accept=".kml,.kmz,application/vnd.google-earth.kml+xml" hidden>
+
+  <!-- dobrodošlica -->
+  <div id="welcome" class="modal hidden">
+    <div class="card">
+      <h1 data-i18n="welcome.title">Dobrodošli! 🌳</h1>
+      <p data-i18n="app.tagline"></p>
+      <p data-i18n="welcome.text"></p>
+      <div class="card-foot"><button id="welcome-create" type="button" class="btn-primary" data-i18n="welcome.create">➕ Novi voćnjak</button></div>
+    </div>
+  </div>
+
+  <!-- novi voćnjak -->
+  <div id="new-modal" class="modal hidden">
+    <form id="new-form" class="card" novalidate>
+      <h2 data-i18n="new.title">Novi voćnjak</h2>
+      <label for="new-name" data-i18n="new.name">Naziv voćnjaka</label>
+      <input id="new-name" type="text" maxlength="60" data-i18n-ph="new.namePh">
+      <label for="new-address" data-i18n="new.address">Mjesto ili adresa</label>
+      <input id="new-address" type="text" maxlength="120" data-i18n-ph="new.addressPh">
+      <small data-i18n="new.addressHint"></small>
+      <div id="new-error" class="form-error hidden" role="alert"></div>
+      <div class="card-foot">
+        <button id="new-cancel" type="button" class="btn-secondary" data-i18n="common.cancel">Odustani</button>
+        <button type="submit" class="btn-primary" data-i18n="new.create">Napravi</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- kako označiti zemljište -->
+  <div id="howto-modal" class="modal hidden">
+    <div class="card wide">
+      <h2 data-i18n="howto.title">Kako označiti zemljište?</h2>
+      <p data-i18n="howto.intro"></p>
+      <div class="howto-grid">
+        <div class="howto-card">
+          <h3 data-i18n="howto.rect.title"></h3>
+          <p data-i18n="howto.rect.text"></p>
+          <button type="button" class="btn-primary" data-choose="rect" data-i18n="howto.choose">Odaberi</button>
+        </div>
+        <div class="howto-card">
+          <h3 data-i18n="howto.draw.title"></h3>
+          <p data-i18n="howto.draw.text"></p>
+          <button type="button" class="btn-primary" data-choose="draw" data-i18n="howto.choose">Odaberi</button>
+        </div>
+        <div class="howto-card">
+          <h3 data-i18n="howto.kml.title"></h3>
+          <p data-i18n="howto.kml.text"></p>
+          <button type="button" class="btn-primary" data-choose="kml" data-i18n="howto.choose">Odaberi</button>
+        </div>
+      </div>
+      <div class="card-foot"><button id="howto-close" type="button" class="btn-secondary" data-i18n="common.close">Zatvori</button></div>
+    </div>
+  </div>
+
+  <!-- gotovo -->
+  <div id="done-modal" class="modal hidden">
+    <div class="card">
+      <h2 data-i18n="done.title">Zemljište je spremljeno</h2>
+      <p id="done-text"></p>
+      <p data-i18n="done.next"></p>
+      <div class="card-foot"><button id="done-ok" type="button" class="btn-primary" data-i18n="common.ok">U redu</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden" role="status"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="js/app.js?v=1a"></script>
+</body>
+</html>
