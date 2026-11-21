@@ -6,8 +6,12 @@
   <title>Horvati voćnjak</title>
   <meta name="theme-color" content="#4f8f4f">
   <link rel="icon" href="icons/tree.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/app/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=2a">
+  <link rel="stylesheet" href="css/style.css?v=3a">
+  <link rel="stylesheet" href="css/features.css?v=3a">
 </head>
 <body>
   <div id="map"></div>
@@ -39,10 +43,20 @@
   <nav id="side-menu" class="hidden">
     <button type="button" class="menu-item edit-only" id="menu-add" data-i18n="menu.addTree"></button>
     <button type="button" class="menu-item edit-only" id="menu-move" data-i18n="menu.move"></button>
-    <hr class="edit-only">
-    <button type="button" class="menu-item view" id="menu-enc" data-i18n="menu.encyclopedia"></button>
+    <button type="button" class="menu-item edit-only" id="menu-bed" data-i18n="menu.bed"></button>
+    <hr>
     <button type="button" class="menu-item view" id="menu-tasks" data-i18n="menu.tasks"></button>
+    <button type="button" class="menu-item view" id="menu-weather" data-i18n="menu.weather"></button>
+    <button type="button" class="menu-item view" id="menu-enc" data-i18n="menu.encyclopedia"></button>
+    <button type="button" class="menu-item view" id="menu-spray" data-i18n="menu.spray"></button>
+    <hr>
+    <button type="button" class="menu-item view" id="menu-filter" data-i18n="menu.filter"></button>
+    <button type="button" class="menu-item view" id="menu-ruler" data-i18n="menu.ruler"></button>
     <button type="button" class="menu-item view" id="menu-sat" data-i18n="menu.satellite"></button>
+    <hr>
+    <button type="button" class="menu-item view" id="menu-yield" data-i18n="menu.yield"></button>
+    <button type="button" class="menu-item view" id="menu-report" data-i18n="menu.report"></button>
+    <button type="button" class="menu-item owner-only" id="menu-wallet" data-i18n="menu.wallet"></button>
     <hr class="edit-only">
     <button type="button" class="menu-item edit-only" id="menu-edit" data-i18n="menu.editBoundary"></button>
   </nav>
@@ -52,6 +66,35 @@
     <button id="tree-panel-close" type="button" class="x-btn" aria-label="Zatvori">x</button>
     <div id="tree-panel-body"></div>
   </aside>
+
+  <!-- panel gredice -->
+  <aside id="bed-panel" class="hidden">
+    <button id="bed-panel-close" type="button" class="x-btn" aria-label="Zatvori">x</button>
+    <div id="bed-panel-body"></div>
+  </aside>
+
+  <!-- filter -->
+  <aside id="filter-panel" class="hidden">
+    <div class="big-head"><b data-i18n="filter.title"></b><button id="filter-close" type="button" class="x-btn">x</button></div>
+    <input id="filter-search" type="search" data-i18n-ph="filter.searchPh" autocomplete="off">
+    <h4 data-i18n="filter.types"></h4>
+    <div id="filter-types" class="fp-types"></div>
+    <h4 data-i18n="filter.state"></h4>
+    <label class="fp-radio"><input type="radio" name="filter-state" value="all" checked> <span data-i18n="filter.all"></span></label>
+    <label class="fp-radio"><input type="radio" name="filter-state" value="tasks"> <span data-i18n="filter.open"></span></label>
+    <label class="fp-radio"><input type="radio" name="filter-state" value="notpruned"> <span data-i18n="filter.important"></span></label>
+    <label class="fp-radio"><input type="radio" name="filter-state" value="nolog"> <span data-i18n="filter.nolog"></span></label>
+    <label class="fp-row"><span data-i18n="filter.badges"></span>
+      <select id="filter-badges"><option value="important" data-i18n="filter.bImportant"></option><option value="all" data-i18n="filter.bAll"></option><option value="off" data-i18n="filter.bOff"></option></select>
+    </label>
+    <div class="fp-foot"><span id="filter-count" class="muted"></span><button id="filter-reset" type="button" class="ep-btn" data-i18n="filter.reset"></button></div>
+  </aside>
+  <button id="filter-chip" type="button" class="hidden"></button>
+
+  <div id="ruler-bar" class="hidden" role="status">
+    <span id="ruler-text"></span>
+    <button id="ruler-close" type="button" class="ep-btn" data-i18n="ruler.close"></button>
+  </div>
 
   <!-- panel za uređivanje granice -->
   <aside id="edit-panel" class="hidden">
@@ -237,8 +280,77 @@
         <button id="tasks-next" type="button" class="round-btn">›</button>
         <button id="tasks-today" type="button" class="ep-btn hidden" data-i18n="tasks.today">Danas</button>
         <label class="tasks-filter"><span data-i18n="tasks.species">Vrsta</span> <select id="tasks-species"></select></label>
+        <button id="tasks-add" type="button" class="ep-btn hidden" data-i18n="tasks.add"></button>
       </div>
+      <div id="tasks-progress" class="progress"></div>
       <div id="tasks-list"></div>
+    </div>
+  </div>
+
+  <!-- nova gredica -->
+  <div id="bed-modal" class="modal hidden">
+    <form id="bed-form" class="card" novalidate>
+      <h2 data-i18n="bed.title"></h2>
+      <label for="bed-new-name" data-i18n="bed.name"></label>
+      <input id="bed-new-name" type="text" maxlength="60">
+      <div class="ep-row">
+        <label><span data-i18n="bed.width"></span><input id="bed-new-w" type="text" inputmode="decimal" placeholder="1"></label>
+        <label><span data-i18n="bed.length"></span><input id="bed-new-l" type="text" inputmode="decimal" placeholder="5"></label>
+      </div>
+      <div id="bed-error" class="form-error hidden" role="alert"></div>
+      <div class="card-foot">
+        <button id="bed-cancel" type="button" class="btn-secondary" data-i18n="common.cancel"></button>
+        <button type="submit" class="btn-primary" data-i18n="bed.add"></button>
+      </div>
+    </form>
+  </div>
+
+  <!-- novčanik -->
+  <div id="wallet-modal" class="modal hidden">
+    <div class="card big">
+      <div class="big-head"><b data-i18n="wallet.title"></b><button id="wallet-close" type="button" class="x-btn">x</button></div>
+      <div class="scroll-body">
+        <p class="muted small" data-i18n="wallet.private"></p>
+        <form id="w-form" class="pp-form w-form" novalidate>
+          <div class="row">
+            <label class="fp-radio"><input type="radio" name="w-kind" value="trosak" checked> <span data-i18n="wallet.cost"></span></label>
+            <label class="fp-radio"><input type="radio" name="w-kind" value="prihod"> <span data-i18n="wallet.inc"></span></label>
+          </div>
+          <div class="row"><select id="w-cat" aria-label="Kategorija"></select><input id="w-amount" type="text" inputmode="decimal" data-i18n-ph="wallet.amount"><input id="w-date" type="date"></div>
+          <div class="row"><input id="w-note" type="text" maxlength="200" data-i18n-ph="wallet.note"><label class="fp-radio"><input id="w-planned-cb" type="checkbox"> <span data-i18n="wallet.isPlanned"></span></label><button type="submit" class="btn-primary" data-i18n="wallet.add"></button></div>
+        </form>
+        <div class="tasks-nav"><button id="w-prev" type="button" class="round-btn">‹</button><strong id="w-year"></strong><button id="w-next" type="button" class="round-btn">›</button></div>
+        <div id="w-summary" class="ws-grid"></div>
+        <div id="w-planned"></div>
+        <div id="w-breakdown"></div>
+        <ul id="w-list" class="wallet-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- izvještaj -->
+  <div id="report-modal" class="modal hidden">
+    <div class="card big">
+      <div class="big-head"><b data-i18n="report.title"></b><button id="report-close" type="button" class="x-btn">x</button></div>
+      <div class="tasks-nav"><button id="r-prev" type="button" class="round-btn">‹</button><strong id="r-year"></strong><button id="r-next" type="button" class="round-btn">›</button>
+        <button id="r-csv" type="button" class="ep-btn" data-i18n="report.csv"></button><button id="r-print" type="button" class="ep-btn" data-i18n="report.print"></button></div>
+      <div id="report-body" class="scroll-body"></div>
+    </div>
+  </div>
+
+  <!-- procjena uroda -->
+  <div id="yield-modal" class="modal hidden">
+    <div class="card big">
+      <div class="big-head"><b data-i18n="yield.title"></b><button id="yield-close" type="button" class="x-btn">x</button></div>
+      <div id="yield-body" class="scroll-body"></div>
+    </div>
+  </div>
+
+  <!-- prognoza -->
+  <div id="weather-modal" class="modal hidden">
+    <div class="card big">
+      <div class="big-head"><b data-i18n="weather.title"></b><button id="weather-close" type="button" class="x-btn">x</button></div>
+      <div id="weather-body" class="scroll-body"></div>
     </div>
   </div>
 
@@ -251,6 +363,6 @@
   <div id="toast" class="hidden" role="status"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="js/app.js?v=2a"></script>
+  <script type="module" src="js/app.js?v=3a"></script>
 </body>
 </html>

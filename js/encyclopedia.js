@@ -44,7 +44,7 @@ function renderList() {
   const el = $('enc-list');
   if (mode === 'voce') {
     const counts = countsFn();
-    el.innerHTML = fruitList().map((v) => '<button type="button" class="enc-item' + (v.id === selFruit ? ' active' : '') + '" data-id="' + v.id + '">' +
+    el.innerHTML = '<button type="button" class="enc-item special' + (selFruit === SPRAY ? ' active' : '') + '" data-id="' + SPRAY + '"><span class="sp-emoji">🧴</span><span>' + t('spray.title') + '</span></button>' + fruitList().map((v) => '<button type="button" class="enc-item' + (v.id === selFruit ? ' active' : '') + '" data-id="' + v.id + '">' +
       speciesIconHtml(v.id, 22) + '<span>' + esc(v.id === 'ostalo' ? speciesName('ostalo') : (getLang() === 'en' ? speciesName(v.id) : v.naziv)) + '</span>' +
       (counts[v.id] ? '<b class="cnt">' + counts[v.id] + '</b>' : '') + '</button>').join('');
   } else {
@@ -77,10 +77,65 @@ function legend() {
     '<span><i style="background:' + VEG_COLORS.berba + '"></i>' + t('enc.legHarvest') + '</span></div>';
 }
 
+const SPRAY = 'spricanje';
+function sprayHtml() {
+  const cfg = fruit.meta && fruit.meta.pripravci;
+  if (!cfg) return '<p class="muted">–</p>';
+  const c = countsFn();
+  let species = fruit.vrste.filter((v) => v.id !== 'ostalo' && c[v.id] > 0);
+  if (!species.length) species = fruit.vrste.filter((v) => v.id !== 'ostalo');
+  const list = [];
+  species.forEach((v) => {
+    (v.bolesti || []).forEach((b) => list.push({ species: v, problem: b, tip: 'bolesti' }));
+    (v.stetnici || []).forEach((b) => list.push({ species: v, problem: b, tip: 'stetnici' }));
+  });
+  const probs = list.filter((p) => p.problem.naziv !== 'Rijetko');
+  const total = probs.length;
+  const match = (prep, p) => {
+    const text = p.problem.rjesenje || '';
+    if (!new RegExp(prep.kljuc, 'i').test(text)) return false;
+    if (prep.iskljuci && new RegExp(prep.iskljuci, 'i').test(text)) return false;
+    if (prep.tip === 'bolesti' && p.tip !== 'bolesti' && prep.id !== 'bakar' && prep.id !== 'sumpor') return false;
+    if (prep.tip === 'stetnici' && p.tip !== 'stetnici') return false;
+    return true;
+  };
+  const sprayRe = new RegExp(cfg.prskanjeKljuc, 'i');
+  const noSpray = probs.filter((p) => !sprayRe.test(p.problem.rjesenje || ''));
+  const preps = cfg.popis.map((prep) => ({ prep, hits: probs.filter((p) => match(prep, p)) }));
+  const basic = preps.filter((x) => x.prep.osnovni);
+  const basicHits = probs.filter((p) => basic.some((x) => x.hits.includes(p))).length;
+  const pct = (n) => (total ? Math.round(n / total * 100) : 0);
+  const group = (hits) => {
+    const by = {};
+    hits.forEach((p) => { (by[p.species.id] = by[p.species.id] || { s: p.species, names: [] }).names.push(p.problem.naziv); });
+    return Object.values(by).sort((a, b) => a.s.naziv.localeCompare(b.s.naziv, 'hr')).map((g) => '<li>' + speciesIconHtml(g.s.id, 16) + ' <b>' + esc(g.s.naziv) + ':</b> ' + esc(g.names.join(', ')) + '</li>').join('');
+  };
+  let h = '<header class="enc-head"><span class="sp-emoji" style="font-size:38px">🧴</span><div><h2>' + t('spray.title') + '</h2><div class="muted">' + t('spray.sub', { n: species.length, p: total }) + '</div></div></header>';
+  h += '<div class="spray-summary"><div class="spray-big"><b>' + basic.length + '</b><span>' + t('spray.basic') + '</span></div>' +
+    '<div class="spray-big"><b>' + pct(basicHits) + ' %</b><span>' + t('spray.basicCover', { n: basicHits, p: total }) + '</span></div>' +
+    '<div class="spray-big ok"><b>' + pct(noSpray.length) + ' %</b><span>' + t('spray.noSprayCover', { n: noSpray.length }) + '</span></div></div>';
+  h += '<p>' + esc(cfg.uvod) + '</p>';
+  preps.forEach((x) => {
+    const p = x.prep;
+    h += '<section class="spray-card' + (p.osnovni ? ' basic' : '') + '"><div class="spray-head"><span class="spray-emoji">' + p.emoji + '</span><div><h3>' + esc(p.naziv) +
+      ' <span class="badge ' + (p.osnovni ? 'first' : 'moved') + '">' + t(p.osnovni ? 'spray.isBasic' : 'spray.asNeeded') + '</span></h3>' +
+      (p.id !== 'pomagala' || x.hits.length ? '<div class="spray-cover"><span class="spray-bar"><i style="width:' + Math.max(2, pct(x.hits.length)) + '%"></i></span>' + t('spray.helps', { n: x.hits.length, p: total, pct: pct(x.hits.length) }) + '</div>' : '') + '</div></div>' +
+      '<div class="enc-row"><span class="tag see">' + t('spray.what') + '</span><p>' + esc(p.stoJe) + '</p></div>' +
+      '<div class="enc-row"><span class="tag fix">' + t('spray.when') + '</span><p>' + esc(p.kada) + '</p></div>' +
+      '<div class="enc-row"><span class="tag warn">' + t('spray.careful') + '</span><p>' + esc(p.pazi) + '</p></div>' +
+      (x.hits.length ? '<details class="spray-list"><summary>' + t('spray.which', { n: x.hits.length }) + '</summary><ul>' + group(x.hits) + '</ul></details>' : '') + '</section>';
+  });
+  if (noSpray.length) h += '<section class="spray-card ok"><div class="spray-head"><span class="spray-emoji">✂️</span><div><h3>' + t('spray.noSpray') + '</h3><div class="spray-cover">' + t('spray.noSprayHow') + '</div></div></div>' +
+    '<details class="spray-list"><summary>' + t('spray.which', { n: noSpray.length }) + '</summary><ul>' + group(noSpray) + '</ul></details></section>';
+  return h;
+}
+
 function renderArticle() {
   const el = $('enc-article');
   let h = getLang() === 'en' ? '<p class="enc-lang-note">' + t('enc.langNote') + '</p>' : '';
-  if (mode === 'voce') {
+  if (mode === 'voce' && selFruit === SPRAY) {
+    h += sprayHtml();
+  } else if (mode === 'voce') {
     const v = fruit.vrste.find((x) => x.id === selFruit);
     if (!v) { el.innerHTML = ''; return; }
     const cnt = countsFn()[v.id] || 0;
@@ -122,6 +177,7 @@ function render() {
 }
 
 export async function openEncyclopedia(speciesId) {
+  if (speciesId === 'spray') speciesId = null, selFruit = SPRAY, mode = 'voce';
   $('enc-modal').classList.remove('hidden');
   await Promise.all([loadEncyclopedia(), loadVegetables()]);
   if (speciesId) { mode = 'voce'; selFruit = fruit.vrste.some((v) => v.id === speciesId) ? speciesId : 'ostalo'; }

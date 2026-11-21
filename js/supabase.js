@@ -71,3 +71,22 @@ export const treesDb = {
     if (error) throw error;
   }
 };
+
+// ---------------------------------------------------------------------------
+// Ostali podaci voćnjaka (stanje zadataka, vlastiti zadaci, gredice, novčanik)
+// ---------------------------------------------------------------------------
+export const itemsDb = {
+  async list(orchardId) {
+    const { data, error } = await supabase.from('orchard_items').select('kind, id, data').eq('orchard_id', orchardId);
+    if (error) throw error;
+    return data || [];
+  },
+  async upsert(orchardId, kind, id, value) {
+    const { error } = await supabase.from('orchard_items').upsert({ orchard_id: orchardId, kind, id, data: value });
+    if (error) throw error;
+  },
+  async remove(orchardId, kind, id) {
+    const { error } = await supabase.from('orchard_items').delete().eq('orchard_id', orchardId).eq('kind', kind).eq('id', id);
+    if (error) throw error;
+  }
+};

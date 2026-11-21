@@ -6,6 +6,10 @@ import { createOrchardView } from './orchard-view.js';
 import { createTrees } from './trees.js';
 import { initEncyclopedia, openEncyclopedia, rerenderEncyclopedia } from './encyclopedia.js';
 import { initTasks, openTasks, rerenderTasks } from './tasks.js';
+import { state, loadItems, setErrorHandler, counts, reconcile } from './state.js';
+import { createRuler, initFilter } from './tools.js';
+import { createBeds } from './beds.js';
+import { initExtras, openWallet, openReport, openYield, openWeather, rerenderExtras, closeExtras } from './extras.js';
 
 const LEGACY_KEY = 'hvj_orchards_v1'; // voćnjaci iz probne verzije (samo preglednik)
 const CURRENT_KEY = 'hvj_current_v1';
@@ -71,13 +75,32 @@ function escapeHtml(s) {
 
 function canEdit(o) { return !!o && (o.role === 'owner' || o.role === 'editor'); }
 
+function friendlyDbError(e) {
+  const m = (e && e.message) || String(e);
+  if (/orchard_items/.test(m) && /(does not exist|schema cache|not find)/i.test(m)) return t('items.missing');
+  return t('db.error', { msg: m });
+}
+setErrorHandler((e) => { console.error(e); toast(friendlyDbError(e)); });
+
+const ruler = createRuler(map);
+let beds = null;
+const isBusy = () => ruler.isActive() || (beds && beds.isPlacing());
 const trees = createTrees(map, {
-  canEdit,
   contains: (ll) => orchardView.contains(ll),
-  toast: (m) => toast(m)
+  toast: (m) => toast(m),
+  isBusy,
+  onOpen: () => { if (beds) beds.closePanel(); }
 });
-initEncyclopedia(() => trees.counts());
-initTasks(() => trees.counts());
+beds = createBeds(map, {
+  contains: (ll) => orchardView.contains(ll),
+  toast: (m) => toast(m),
+  isBusy,
+  closeOthers: () => trees.closePanel()
+});
+const filter = initFilter(trees);
+initEncyclopedia(() => counts());
+initTasks();
+initExtras({ toast: (m) => toast(m) });
 
 function setMenuOpen(open) {
   $('side-menu').classList.toggle('hidden', !open);
@@ -89,6 +112,7 @@ function updateMenu() {
   $('menu-btn').classList.toggle('hidden', !ready);
   if (!ready) setMenuOpen(false);
   document.body.classList.toggle('viewer', !!current && !canEdit(current));
+  document.body.classList.toggle('not-owner', !current || current.role !== 'owner');
   $('menu-sat').textContent = orchardView.satellite() ? t('menu.satelliteOff') : t('menu.satellite');
 }
 
@@ -164,18 +188,54 @@ function renderPanel() {
 
 function onBoundaryChange() { if (editing) renderPanel(); }
 
-function showOrchard(o, fit = true) {
+let loadSeq = 0;
+async function loadOrchardData(o) {
+  const seq = ++loadSeq;
+  ruler.stop();
+  beds.hideAll();
+  closeExtras();
+  filter.close();
+  await loadItems(o);
+  if (seq !== loadSeq) return;
+  await trees.load(o);
+  if (seq !== loadSeq) return;
+  if (o && o.boundary) await beds.refresh();
+  filter.reset();
+  reconcile();
+}
+
+function setCurrent(o) {
   current = o;
+  state.orchard = o;
+  state.canEdit = canEdit(o);
+  state.isOwner = !!o && o.role === 'owner';
+}
+
+function showOrchard(o, fit = true) {
+  setCurrent(o);
   try { localStorage.setItem(CURRENT_KEY, o ? o.id : ''); } catch (e) { /* ništa */ }
   editor.load(null);
   if (o && o.boundary) orchardView.show(o.boundary.points); else orchardView.hide();
-  trees.load(o);
+  loadOrchardData(o);
   if (o && fit) {
     const b = orchardView.bounds();
     if (b) map.fitBounds(b, { padding: [40, 40], maxZoom: 20 });
     else if (o.center) map.setView(o.center, 18);
   }
   hide('welcome');
+  renderTop();
+}
+
+function clearOrchard() {
+  loadSeq++;
+  setCurrent(null);
+  editor.load(null);
+  orchardView.hide();
+  trees.hideAll();
+  beds.hideAll();
+  ruler.stop();
+  filter.close();
+  closeExtras();
   renderTop();
 }
 
@@ -203,11 +263,7 @@ async function loadOrchards(preferId) {
     showOrchard(first);
     if (!first.boundary && canEdit(first)) startEditing(true);
   } else {
-    current = null;
-    editor.load(null);
-    orchardView.hide();
-    trees.hideAll();
-    renderTop();
+    clearOrchard();
     show('welcome');
   }
 }
@@ -242,6 +298,9 @@ function startEditing(firstTime) {
   setMenuOpen(false);
   orchardView.hide();
   trees.hideAll();
+  beds.hideAll();
+  ruler.stop();
+  filter.close();
   editor.load(current.boundary || null);
   editor.setEditing(true);
   const type = editor.type();
@@ -281,13 +340,13 @@ async function finishEditing() {
     busy = false;
     $('btn-finish').disabled = false;
   }
-  current = updated;
+  setCurrent(updated);
   orchards = orchards.map((o) => (o.id === current.id ? current : o));
   editing = false;
   editor.setEditing(false);
   editor.load(null);
   orchardView.show(current.boundary.points);
-  trees.load(current);
+  loadOrchardData(current);
   map.fitBounds(orchardView.bounds(), { padding: [40, 40], maxZoom: 20 });
   renderPanel();
   renderTop();
@@ -384,13 +443,9 @@ async function onAuth(session, event) {
   user = nextUser;
   if (!user) {
     orchards = [];
-    current = null;
     if (editing) { editing = false; editor.setEditing(false); renderPanel(); }
-    editor.load(null);
-    orchardView.hide();
-    trees.hideAll();
-    ['welcome', 'new-modal', 'howto-modal', 'done-modal', 'enc-modal', 'tasks-modal', 'tree-modal'].forEach(hide);
-    renderTop();
+    clearOrchard();
+    ['welcome', 'new-modal', 'howto-modal', 'done-modal', 'enc-modal', 'tasks-modal', 'tree-modal', 'bed-modal'].forEach(hide);
     setAuthMode('login');
     show('auth-modal');
     return;
@@ -453,7 +508,7 @@ $('btn-delete').addEventListener('click', async () => {
   }
   orchards = orchards.filter((o) => o.id !== current.id);
   const next = orchards[0] || null;
-  if (next) showOrchard(next); else { current = null; editor.load(null); orchardView.hide(); trees.hideAll(); renderTop(); show('welcome'); }
+  if (next) showOrchard(next); else { clearOrchard(); show('welcome'); }
 });
 $('lang-btn').addEventListener('click', () => setLang(getLang() === 'hr' ? 'en' : 'hr'));
 $('auth-lang').addEventListener('click', () => setLang(getLang() === 'hr' ? 'en' : 'hr'));
@@ -502,13 +557,21 @@ $('menu-move').addEventListener('click', () => trees.toggleMove());
 $('menu-enc').addEventListener('click', () => { setMenuOpen(false); openEncyclopedia(); });
 $('menu-tasks').addEventListener('click', () => { setMenuOpen(false); openTasks(); });
 $('menu-sat').addEventListener('click', () => { orchardView.setSatellite(!orchardView.satellite()); updateMenu(); });
+$('menu-spray').addEventListener('click', () => { setMenuOpen(false); openEncyclopedia('spray'); });
+$('menu-bed').addEventListener('click', () => { setMenuOpen(false); ruler.stop(); beds.openAdd(); });
+$('menu-filter').addEventListener('click', () => { setMenuOpen(false); filter.open(); });
+$('menu-ruler').addEventListener('click', () => { setMenuOpen(false); trees.setMove(false); trees.closePanel(); beds.closePanel(); ruler.start(); });
+$('menu-weather').addEventListener('click', () => { setMenuOpen(false); openWeather(); });
+$('menu-yield').addEventListener('click', () => { setMenuOpen(false); openYield(); });
+$('menu-report').addEventListener('click', () => { setMenuOpen(false); openReport(); });
+$('menu-wallet').addEventListener('click', () => { setMenuOpen(false); openWallet(); });
 $('menu-edit').addEventListener('click', () => startEditing(false));
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') ['howto-modal', 'done-modal', 'new-modal', 'enc-modal', 'tasks-modal'].forEach(hide);
+  if (e.key === 'Escape') { ['howto-modal', 'done-modal', 'new-modal', 'enc-modal', 'tasks-modal'].forEach(hide); closeExtras(); }
 });
 
-onLangChange(() => { buildLayersControl(); renderTop(); renderPanel(); setAuthMode(authMode); rerenderEncyclopedia(); rerenderTasks(); trees.rerenderPanel(); });
+onLangChange(() => { buildLayersControl(); renderTop(); renderPanel(); setAuthMode(authMode); rerenderEncyclopedia(); rerenderTasks(); trees.rerenderPanel(); beds.rerender(); rerenderExtras(); if (!$('filter-panel').classList.contains('hidden')) filter.refresh(); });
 
 // ---------------------------------------------------------------------------
 // Pokretanje
@@ -517,6 +580,7 @@ applyI18n();
 buildLayersControl();
 setAuthMode('login');
 renderTop();
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
 supabase.auth.onAuthStateChange((event, session) => {
   // izvan callbacka, da se ne blokira Supabase klijent
   setTimeout(() => onAuth(session, event), 0);
