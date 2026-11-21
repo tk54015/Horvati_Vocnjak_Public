@@ -97,7 +97,11 @@ function renderTop() {
   const loggedIn = !!user;
   $('topbar').classList.toggle('hidden', !loggedIn);
   $('search-form').classList.toggle('hidden', !loggedIn);
-  if (!loggedIn) return;
+  if (!loggedIn) {
+    $('orchard-info').textContent = '';
+    $('orchard-select').innerHTML = '';
+    return;
+  }
   const sel = $('orchard-select');
   sel.innerHTML = orchards.map((o) => '<option value="' + o.id + '"' + (current && o.id === current.id ? ' selected' : '') + '>' + escapeHtml(o.name) + '</option>').join('');
   $('orchard-picker').classList.toggle('hidden', !orchards.length);
