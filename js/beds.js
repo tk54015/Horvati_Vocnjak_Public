@@ -177,7 +177,7 @@ export function createBeds(map, deps) {
     if (!b || !$('p-veg')) return;
     const v = vegById($('p-veg').value);
     const mon = (a) => (a || []).map((m) => m).join(', ') || '–';
-    $('p-info').textContent = v ? '🟦 ' + mon(v.unutra) + ' · 🟩 ' + mon(v.sadnja) + ' · 🟨 ' + mon(v.berba) : '';
+    $('p-info').textContent = v ? t('enc.legIndoor') + ': ' + mon(v.unutra) + ' · ' + t('enc.legPlant') + ': ' + mon(v.sadnja) + ' · ' + t('enc.legHarvest') + ': ' + mon(v.berba) : '';
     const w = warning(b, $('p-veg').value, Number(String($('p-date').value || todayIso()).slice(0, 4)));
     $('p-warn').textContent = w;
     $('p-warn').classList.toggle('hidden', !w);
