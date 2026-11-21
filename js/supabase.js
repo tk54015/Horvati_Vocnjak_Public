@@ -45,3 +45,29 @@ export const db = {
     if (error) throw error;
   }
 };
+
+// ---------------------------------------------------------------------------
+// Stabla
+// ---------------------------------------------------------------------------
+const TREE_COLS = 'id, orchard_id, species, name, lat, lng, height_m, stage, canopy, notes, data, created_at, updated_at';
+
+export const treesDb = {
+  async list(orchardId) {
+    const { data, error } = await supabase.from('trees').select(TREE_COLS).eq('orchard_id', orchardId).order('created_at');
+    if (error) throw error;
+    return data || [];
+  },
+  async create(tree) {
+    const { data, error } = await supabase.from('trees').insert(tree).select(TREE_COLS).single();
+    if (error) throw error;
+    return data;
+  },
+  async update(id, patch) {
+    const { error } = await supabase.from('trees').update(patch).eq('id', id);
+    if (error) throw error;
+  },
+  async remove(id) {
+    const { error } = await supabase.from('trees').delete().eq('id', id);
+    if (error) throw error;
+  }
+};

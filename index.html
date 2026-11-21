@@ -7,13 +7,14 @@
   <meta name="theme-color" content="#4f8f4f">
   <link rel="icon" href="icons/tree.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=1b">
+  <link rel="stylesheet" href="css/style.css?v=2a">
 </head>
 <body>
   <div id="map"></div>
 
   <!-- gornja traka -->
   <header id="topbar" class="hidden">
+    <button id="menu-btn" type="button" class="menu-btn hidden" aria-expanded="false" data-i18n-title="menu.title">☰</button>
     <div class="tb-brand">🌳 <b data-i18n="app.name">Horvati voćnjak</b></div>
     <div id="orchard-picker" class="hidden">
       <label for="orchard-select" class="sr-only" data-i18n="top.orchards">Moji voćnjaci</label>
@@ -33,6 +34,24 @@
     <input id="search-input" type="search" data-i18n-ph="search.ph" placeholder="Traži mjesto ili adresu…">
     <button type="submit" data-i18n="search.btn">Traži</button>
   </form>
+
+  <!-- izbornik -->
+  <nav id="side-menu" class="hidden">
+    <button type="button" class="menu-item edit-only" id="menu-add" data-i18n="menu.addTree"></button>
+    <button type="button" class="menu-item edit-only" id="menu-move" data-i18n="menu.move"></button>
+    <hr class="edit-only">
+    <button type="button" class="menu-item view" id="menu-enc" data-i18n="menu.encyclopedia"></button>
+    <button type="button" class="menu-item view" id="menu-tasks" data-i18n="menu.tasks"></button>
+    <button type="button" class="menu-item view" id="menu-sat" data-i18n="menu.satellite"></button>
+    <hr class="edit-only">
+    <button type="button" class="menu-item edit-only" id="menu-edit" data-i18n="menu.editBoundary"></button>
+  </nav>
+
+  <!-- panel stabla -->
+  <aside id="tree-panel" class="hidden">
+    <button id="tree-panel-close" type="button" class="x-btn" aria-label="Zatvori">x</button>
+    <div id="tree-panel-body"></div>
+  </aside>
 
   <!-- panel za uređivanje granice -->
   <aside id="edit-panel" class="hidden">
@@ -160,13 +179,78 @@
       <h2 data-i18n="done.title">Zemljište je spremljeno</h2>
       <p id="done-text"></p>
       <p data-i18n="done.next"></p>
-      <div class="card-foot"><button id="done-ok" type="button" class="btn-primary" data-i18n="common.ok">U redu</button></div>
+      <div class="card-foot"><button id="done-ok" type="button" class="btn-secondary" data-i18n="common.ok">U redu</button><button id="done-add" type="button" class="btn-primary" data-i18n="done.addTree">Dodaj prvo stablo</button></div>
     </div>
   </div>
+
+  <!-- novo stablo -->
+  <div id="tree-modal" class="modal hidden">
+    <form id="tree-form" class="card" novalidate>
+      <h2 data-i18n="tree.title">Novo stablo</h2>
+      <label for="tree-species" data-i18n="tree.species">Vrsta</label>
+      <select id="tree-species"></select>
+      <label for="tree-name" data-i18n="tree.name">Ime / oznaka</label>
+      <input id="tree-name" type="text" maxlength="80" data-i18n-ph="tree.namePh">
+      <details class="opt">
+        <summary data-i18n="tree.optional">Ostali podaci</summary>
+        <div class="opt-grid">
+          <label for="tree-height" data-i18n="tree.height">Visina (m)</label>
+          <input id="tree-height" type="number" min="0" max="40" step="0.1" inputmode="decimal">
+          <label for="tree-stage" data-i18n="tree.stage">Stadij</label>
+          <select id="tree-stage"><option value="" data-i18n="opt.unknown"></option><option value="mlado" data-i18n="opt.young"></option><option value="odraslo" data-i18n="opt.adult"></option></select>
+          <label for="tree-canopy" data-i18n="tree.canopy">Krošnja</label>
+          <select id="tree-canopy"><option value="" data-i18n="opt.unknown"></option><option value="mala" data-i18n="opt.small"></option><option value="srednja" data-i18n="opt.medium"></option><option value="velika" data-i18n="opt.large"></option></select>
+        </div>
+        <label for="tree-notes" data-i18n="tree.notes">Napomena</label>
+        <input id="tree-notes" type="text" maxlength="300">
+      </details>
+      <div id="tree-error" class="form-error hidden" role="alert"></div>
+      <div class="card-foot">
+        <button id="tree-cancel" type="button" class="btn-secondary" data-i18n="common.cancel">Odustani</button>
+        <button type="submit" class="btn-primary" data-i18n="tree.add">Postavi na kartu</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- enciklopedija -->
+  <div id="enc-modal" class="modal hidden">
+    <div class="card big">
+      <div class="big-head"><b data-i18n="enc.title">Enciklopedija</b><button id="enc-close" type="button" class="x-btn">x</button></div>
+      <div class="enc-tabs">
+        <button type="button" class="enc-tab active" data-mode="voce" data-i18n="enc.fruit">Voće</button>
+        <button type="button" class="enc-tab" data-mode="povrce" data-i18n="enc.veg">Povrće</button>
+      </div>
+      <div class="enc-body">
+        <nav id="enc-list"></nav>
+        <article id="enc-article"></article>
+      </div>
+    </div>
+  </div>
+
+  <!-- raspored radova -->
+  <div id="tasks-modal" class="modal hidden">
+    <div class="card big">
+      <div class="big-head"><b data-i18n="tasks.title">Raspored radova</b><button id="tasks-close" type="button" class="x-btn">x</button></div>
+      <div class="tasks-nav">
+        <button id="tasks-prev" type="button" class="round-btn">‹</button>
+        <strong id="tasks-month"></strong>
+        <button id="tasks-next" type="button" class="round-btn">›</button>
+        <button id="tasks-today" type="button" class="ep-btn hidden" data-i18n="tasks.today">Danas</button>
+        <label class="tasks-filter"><span data-i18n="tasks.species">Vrsta</span> <select id="tasks-species"></select></label>
+      </div>
+      <div id="tasks-list"></div>
+    </div>
+  </div>
+
+  <div id="place-bar" class="hidden" role="status">
+    <span id="place-text"></span>
+    <button id="place-cancel" type="button" class="ep-btn" data-i18n="common.cancel">Odustani</button>
+  </div>
+  <div id="cursor-tree" class="hidden" aria-hidden="true"></div>
 
   <div id="toast" class="hidden" role="status"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="js/app.js?v=1b"></script>
+  <script type="module" src="js/app.js?v=2a"></script>
 </body>
 </html>

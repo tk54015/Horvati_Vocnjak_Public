@@ -2,6 +2,10 @@ import { t, applyI18n, setLang, getLang, onLangChange, fmtNum, fmtArea } from '.
 import { createBoundaryEditor } from './geo-editor.js';
 import { parseKmlPolygon } from './geo.js';
 import { supabase, db } from './supabase.js';
+import { createOrchardView } from './orchard-view.js';
+import { createTrees } from './trees.js';
+import { initEncyclopedia, openEncyclopedia, rerenderEncyclopedia } from './encyclopedia.js';
+import { initTasks, openTasks, rerenderTasks } from './tasks.js';
 
 const LEGACY_KEY = 'hvj_orchards_v1'; // voćnjaci iz probne verzije (samo preglednik)
 const CURRENT_KEY = 'hvj_current_v1';
@@ -36,6 +40,7 @@ map.on('baselayerchange', (e) => {
 });
 
 const editor = createBoundaryEditor(map, onBoundaryChange);
+const orchardView = createOrchardView(map);
 
 // ---------------------------------------------------------------------------
 // Stanje
@@ -65,6 +70,27 @@ function escapeHtml(s) {
 }
 
 function canEdit(o) { return !!o && (o.role === 'owner' || o.role === 'editor'); }
+
+const trees = createTrees(map, {
+  canEdit,
+  contains: (ll) => orchardView.contains(ll),
+  toast: (m) => toast(m)
+});
+initEncyclopedia(() => trees.counts());
+initTasks(() => trees.counts());
+
+function setMenuOpen(open) {
+  $('side-menu').classList.toggle('hidden', !open);
+  $('menu-btn').setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function updateMenu() {
+  const ready = !!(user && current && current.boundary && !editing);
+  $('menu-btn').classList.toggle('hidden', !ready);
+  if (!ready) setMenuOpen(false);
+  document.body.classList.toggle('viewer', !!current && !canEdit(current));
+  $('menu-sat').textContent = orchardView.satellite() ? t('menu.satelliteOff') : t('menu.satellite');
+}
 
 // ---------------------------------------------------------------------------
 // Pretraga mjesta
@@ -98,6 +124,7 @@ function renderTop() {
   $('topbar').classList.toggle('hidden', !loggedIn);
   $('search-form').classList.toggle('hidden', !loggedIn);
   if (!loggedIn) {
+    updateMenu();
     $('orchard-info').textContent = '';
     $('orchard-select').innerHTML = '';
     return;
@@ -109,6 +136,7 @@ function renderTop() {
   $('btn-delete').classList.toggle('hidden', !current || editing || current.role !== 'owner');
   $('lang-btn').textContent = t('lang.switch');
   $('user-email').textContent = user.email || '';
+  updateMenu();
   const info = $('orchard-info');
   if (current && current.boundary && !editing) {
     info.textContent = '📐 ' + fmtArea(Number(current.area) || 0) + (current.role === 'viewer' ? ' · 👁️ ' + t('role.viewer') : '');
@@ -139,9 +167,11 @@ function onBoundaryChange() { if (editing) renderPanel(); }
 function showOrchard(o, fit = true) {
   current = o;
   try { localStorage.setItem(CURRENT_KEY, o ? o.id : ''); } catch (e) { /* ništa */ }
-  editor.load(o ? o.boundary : null);
+  editor.load(null);
+  if (o && o.boundary) orchardView.show(o.boundary.points); else orchardView.hide();
+  trees.load(o);
   if (o && fit) {
-    const b = editor.bounds();
+    const b = orchardView.bounds();
     if (b) map.fitBounds(b, { padding: [40, 40], maxZoom: 20 });
     else if (o.center) map.setView(o.center, 18);
   }
@@ -152,7 +182,7 @@ function showOrchard(o, fit = true) {
 function stopEditing() {
   editing = false;
   editor.setEditing(false);
-  editor.load(current ? current.boundary : null);
+  editor.load(null);
   renderPanel();
 }
 
@@ -175,6 +205,8 @@ async function loadOrchards(preferId) {
   } else {
     current = null;
     editor.load(null);
+    orchardView.hide();
+    trees.hideAll();
     renderTop();
     show('welcome');
   }
@@ -207,6 +239,10 @@ async function offerLegacyImport() {
 function startEditing(firstTime) {
   if (!canEdit(current)) return;
   editing = true;
+  setMenuOpen(false);
+  orchardView.hide();
+  trees.hideAll();
+  editor.load(current.boundary || null);
   editor.setEditing(true);
   const type = editor.type();
   if (!type) {
@@ -249,7 +285,10 @@ async function finishEditing() {
   orchards = orchards.map((o) => (o.id === current.id ? current : o));
   editing = false;
   editor.setEditing(false);
-  editor.load(current.boundary);
+  editor.load(null);
+  orchardView.show(current.boundary.points);
+  trees.load(current);
+  map.fitBounds(orchardView.bounds(), { padding: [40, 40], maxZoom: 20 });
   renderPanel();
   renderTop();
   $('done-text').textContent = t('done.text', { area: fmtArea(Number(current.area)) });
@@ -348,7 +387,9 @@ async function onAuth(session, event) {
     current = null;
     if (editing) { editing = false; editor.setEditing(false); renderPanel(); }
     editor.load(null);
-    ['welcome', 'new-modal', 'howto-modal', 'done-modal'].forEach(hide);
+    orchardView.hide();
+    trees.hideAll();
+    ['welcome', 'new-modal', 'howto-modal', 'done-modal', 'enc-modal', 'tasks-modal', 'tree-modal'].forEach(hide);
     renderTop();
     setAuthMode('login');
     show('auth-modal');
@@ -412,7 +453,7 @@ $('btn-delete').addEventListener('click', async () => {
   }
   orchards = orchards.filter((o) => o.id !== current.id);
   const next = orchards[0] || null;
-  if (next) showOrchard(next); else { current = null; editor.load(null); renderTop(); show('welcome'); }
+  if (next) showOrchard(next); else { current = null; editor.load(null); orchardView.hide(); trees.hideAll(); renderTop(); show('welcome'); }
 });
 $('lang-btn').addEventListener('click', () => setLang(getLang() === 'hr' ? 'en' : 'hr'));
 $('auth-lang').addEventListener('click', () => setLang(getLang() === 'hr' ? 'en' : 'hr'));
@@ -453,12 +494,21 @@ $('kml-file').addEventListener('change', async (e) => {
 });
 $('btn-finish').addEventListener('click', finishEditing);
 $('done-ok').addEventListener('click', () => hide('done-modal'));
+$('done-add').addEventListener('click', () => { hide('done-modal'); trees.openAddModal(); });
+
+$('menu-btn').addEventListener('click', () => setMenuOpen($('side-menu').classList.contains('hidden')));
+$('menu-add').addEventListener('click', () => { setMenuOpen(false); trees.openAddModal(); });
+$('menu-move').addEventListener('click', () => trees.toggleMove());
+$('menu-enc').addEventListener('click', () => { setMenuOpen(false); openEncyclopedia(); });
+$('menu-tasks').addEventListener('click', () => { setMenuOpen(false); openTasks(); });
+$('menu-sat').addEventListener('click', () => { orchardView.setSatellite(!orchardView.satellite()); updateMenu(); });
+$('menu-edit').addEventListener('click', () => startEditing(false));
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') ['howto-modal', 'done-modal', 'new-modal'].forEach(hide);
+  if (e.key === 'Escape') ['howto-modal', 'done-modal', 'new-modal', 'enc-modal', 'tasks-modal'].forEach(hide);
 });
 
-onLangChange(() => { buildLayersControl(); renderTop(); renderPanel(); setAuthMode(authMode); });
+onLangChange(() => { buildLayersControl(); renderTop(); renderPanel(); setAuthMode(authMode); rerenderEncyclopedia(); rerenderTasks(); trees.rerenderPanel(); });
 
 // ---------------------------------------------------------------------------
 // Pokretanje
