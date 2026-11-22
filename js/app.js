@@ -81,8 +81,11 @@ const grid = L.layerGroup();
   L.polyline(major, { color: '#cfcfcf', weight: 1, interactive: false }).addTo(grid);
 })();
 
-// 'blank' = bijela podloga bez lokacije, 'real' = satelit / karta
+// 'blank' = bijela podloga bez lokacije (s mrežom),
+// 'real'  = cijela karta (samo dok se bira lokacija / uređuje granica),
+// 'cut'   = gotovo zemljište s lokacijom: okolica bijela ("izrezano"), satelit samo ispod zemljišta po želji
 let mapMode = null;
+let satClip = null;
 function setMapMode(mode) {
   if (mode === mapMode) return;
   mapMode = mode;
@@ -91,14 +94,26 @@ function setMapMode(mode) {
   if (real) {
     baseLayer.addTo(map);
     if (baseLayer === satellite) labels.addTo(map);
-    map.removeLayer(grid);
-  } else {
-    grid.addTo(map);
   }
+  if (mode === 'blank') grid.addTo(map); else map.removeLayer(grid);
   buildLayersControl();
   document.body.classList.toggle('blank-map', !real);
   orchardView.setBlank(!real);
+  updateSatClip();
   renderTop();
+}
+
+// Satelitska snimka samo u okviru zemljišta (ostale pločice se ni ne učitavaju), okolica je prekrivena bijelim
+function updateSatClip() {
+  if (satClip) { map.removeLayer(satClip); satClip = null; }
+  const b = orchardView.bounds();
+  const on = mapMode === 'cut' && orchardView.satellite() && b;
+  document.body.classList.toggle('sat-under', !!on);
+  if (!on) return;
+  satClip = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: MAX_ZOOM, maxNativeZoom: 19, bounds: b.pad(0.02),
+    attribution: 'Snimke &copy; Esri, Maxar, Earthstar Geographics'
+  }).addTo(map);
 }
 const isLocated = (o) => !!(o && o.boundary && o.boundary.located !== false);
 
@@ -176,7 +191,7 @@ function updateMenu() {
   document.body.classList.toggle('viewer', !!current && !canEdit(current));
   document.body.classList.toggle('not-owner', !current || current.role !== 'owner');
   $('menu-sat').textContent = orchardView.satellite() ? t('menu.satelliteOff') : t('menu.satellite');
-  $('menu-sat').classList.toggle('hidden', mapMode !== 'real');
+  $('menu-sat').classList.toggle('hidden', mapMode !== 'cut');
 }
 
 // ---------------------------------------------------------------------------
@@ -280,8 +295,9 @@ function showOrchard(o, fit = true) {
   setCurrent(o);
   try { localStorage.setItem(CURRENT_KEY, o ? o.id : ''); } catch (e) { /* ništa */ }
   editor.load(null);
-  setMapMode(isLocated(o) ? 'real' : 'blank');
+  setMapMode(isLocated(o) ? 'cut' : 'blank');
   if (o && o.boundary) orchardView.show(o.boundary.points); else orchardView.hide();
+  updateSatClip();
   loadOrchardData(o);
   if (o && fit) {
     const b = orchardView.bounds();
@@ -420,6 +436,8 @@ async function finishEditing() {
   editor.setEditing(false);
   editor.load(null);
   orchardView.show(current.boundary.points);
+  setMapMode(isLocated(current) ? 'cut' : 'blank');
+  updateSatClip();
   loadOrchardData(current);
   map.fitBounds(orchardView.bounds(), { padding: [40, 40], maxZoom: 21 });
   renderPanel();
@@ -478,14 +496,16 @@ map.on('click', (e) => {
   const from = shapeCenter(b);
   editLocated = true;
   editor.setEditing(true);
-  if (from && b.points.length >= 3) {
+  map.setView(to, 19);
+  if (current.boundary && from && b.points.length >= 3) {
+    // već postojeće zemljište (možda sa stablima): premjesti ga na odabrano mjesto
     relocations.push({ from, to });
     editor.load(moveBoundary(b, from, to));
   } else {
-    editor.startRect(to, 20, 20);
-    editMethod = 'rect';
+    // prvo označavanje: odmah klikanje kutova na satelitskoj snimci
+    editor.startDraw();
+    editMethod = 'draw';
   }
-  map.setView(to, 19);
   renderPanel();
   renderTop();
 });
@@ -738,7 +758,7 @@ $('menu-add').addEventListener('click', () => { setMenuOpen(false); trees.openAd
 $('menu-move').addEventListener('click', () => trees.toggleMove());
 $('menu-enc').addEventListener('click', () => { setMenuOpen(false); openEncyclopedia(); });
 $('menu-tasks').addEventListener('click', () => { setMenuOpen(false); openTasks(); });
-$('menu-sat').addEventListener('click', () => { orchardView.setSatellite(!orchardView.satellite()); updateMenu(); });
+$('menu-sat').addEventListener('click', () => { orchardView.setSatellite(!orchardView.satellite()); updateSatClip(); updateMenu(); });
 $('menu-bed').addEventListener('click', () => { setMenuOpen(false); ruler.stop(); beds.openAdd(); });
 $('menu-filter').addEventListener('click', () => { setMenuOpen(false); filter.open(); });
 $('menu-ruler').addEventListener('click', () => { setMenuOpen(false); trees.setMove(false); trees.closePanel(); beds.closePanel(); ruler.start(); });

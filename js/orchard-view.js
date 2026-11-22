@@ -11,9 +11,12 @@ export function createOrchardView(map) {
   function draw() {
     layer.clearLayers();
     if (!points || points.length < 3) return;
-    const sat = satellite && !blank;
-    // okolica: tamni sloj s rupom u obliku zemljišta
-    if (!blank) {
+    const sat = satellite;
+    // okolica: na bijeloj podlozi bijeli neprozirni sloj s rupom (satelit se vidi samo unutar zemljišta),
+    // inače tamni sloj s rupom u obliku zemljišta
+    if (blank && sat) {
+      L.polygon([WORLD, points], { stroke: false, fillColor: '#ffffff', fillOpacity: 1, interactive: false }).addTo(layer);
+    } else if (!blank) {
       L.polygon([WORLD, points], {
         stroke: false, fillColor: '#0f1a0d', fillOpacity: sat ? 0.55 : 0.78, interactive: false
       }).addTo(layer);
