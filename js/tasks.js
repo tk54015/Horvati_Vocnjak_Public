@@ -1,6 +1,6 @@
 // Raspored radova: mjesec po mjesec, kvačice, odgoda, preskakanje, vlastiti zadaci, napredak po stablima.
 import { t, getLang } from './i18n.js';
-import { speciesIconHtml, speciesName, sortedSpecies } from './species.js';
+import { speciesIconHtml, speciesName, speciesLabel, sortedSpecies } from './species.js';
 import { state, counts, monthRows, setItem, speciesProgress, uid, onChange } from './state.js';
 
 const MONTHS_HR = ['Siječanj', 'Veljača', 'Ožujak', 'Travanj', 'Svibanj', 'Lipanj', 'Srpanj', 'Kolovoz', 'Rujan', 'Listopad', 'Studeni', 'Prosinac'];
@@ -70,7 +70,7 @@ function render() {
   $('tasks-today').classList.toggle('hidden', isNow);
   $('tasks-add').classList.toggle('hidden', !editable);
   const opts = Object.keys(c).filter((s) => state.raspored.zadaci.some((z) => (z.vrste || []).includes(s)));
-  $('tasks-species').innerHTML = '<option value="">' + t('tasks.allSpecies') + '</option>' + opts.map((s) => '<option value="' + s + '"' + (s === speciesFilter ? ' selected' : '') + '>' + esc(speciesName(s)) + ' (' + c[s] + ')</option>').join('');
+  $('tasks-species').innerHTML = '<option value="">' + t('tasks.allSpecies') + '</option>' + opts.map((s) => '<option value="' + s + '"' + (s === speciesFilter ? ' selected' : '') + '>' + esc(speciesLabel(s)) + ' (' + c[s] + ')</option>').join('');
 
   const keep = (r) => !speciesFilter || (r.task.vrste || []).includes(speciesFilter);
   const rows = monthRows(view.y, view.m);
@@ -106,7 +106,7 @@ function customForm() {
     '<div class="ct-row"><label>' + t('tasks.month') + '<select id="ct-month">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => '<option value="' + m + '"' + (m === view.m ? ' selected' : '') + '>' + monthName(m) + '</option>').join('') + '</select></label>' +
     '<label>' + t('tasks.year') + '<select id="ct-year"><option value="' + view.y + '">' + t('tasks.onlyYear', { y: view.y }) + '</option><option value="' + (view.y + 1) + '">' + t('tasks.onlyYear', { y: view.y + 1 }) + '</option><option value="0">' + t('tasks.everyYear') + '</option></select></label></div>' +
     '<div class="ct-row"><label>' + t('tasks.priority') + '<select id="ct-prio"><option value="1">🔴 ' + t('tasks.prio1') + '</option><option value="2" selected>🟠 ' + t('tasks.prio2') + '</option><option value="3">🟢 ' + t('tasks.prio3') + '</option></select></label>' +
-    '<label>' + t('tasks.species') + '<select id="ct-species"><option value="">' + t('tasks.noSpecies') + '</option>' + sortedSpecies().map((s) => '<option value="' + s.id + '">' + esc(speciesName(s.id)) + '</option>').join('') + '</select></label></div>' +
+    '<label>' + t('tasks.species') + '<select id="ct-species"><option value="">' + t('tasks.noSpecies') + '</option>' + sortedSpecies().map((s) => '<option value="' + s.id + '">' + esc(speciesLabel(s.id)) + '</option>').join('') + '</select></label></div>' +
     '<div id="ct-error" class="form-error hidden"></div><div class="card-foot"><button type="button" id="ct-cancel" class="btn-secondary">' + t('common.cancel') + '</button><button type="submit" class="btn-primary">' + t('tasks.addCustom') + '</button></div></form>';
 }
 

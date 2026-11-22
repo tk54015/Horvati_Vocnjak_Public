@@ -21,7 +21,8 @@ const PICK_CENTER = [45.1, 16.4]; // pogled na Hrvatsku pri odabiru lokacije
 // Voćnjak bez lokacije crta se oko ove (izmišljene) točke na bijeloj podlozi – stvarna lokacija se nigdje ne sprema.
 const VIRTUAL_ORIGIN = L.latLng(0, 0);
 const MAX_ZOOM = 25;
-const map = L.map('map', { zoomControl: false, maxZoom: MAX_ZOOM, minZoom: 3, scrollWheelZoom: false }).setView(VIRTUAL_ORIGIN, 19);
+// veliki padding: zemljište je nacrtano i izvan ekrana pa se tijekom zumiranja/pomicanja ne "odreže"
+const map = L.map('map', { zoomControl: false, maxZoom: MAX_ZOOM, minZoom: 3, scrollWheelZoom: false, renderer: L.svg({ padding: 1 }) }).setView(VIRTUAL_ORIGIN, 19);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 L.control.scale({ position: 'bottomleft', imperial: false, maxWidth: 140 }).addTo(map);
 

@@ -1,7 +1,7 @@
 // Stabla: prikaz, dodavanje, premještanje, panel (Pregled / Dnevnik / Berba), oznake zadataka, filter.
 import { t, fmtNum } from './i18n.js';
 import { treesDb } from './supabase.js';
-import { species, speciesName, sortedSpecies, markerIcon, speciesIconHtml, waterDrops } from './species.js';
+import { species, speciesName, speciesLabel, sortedSpecies, markerIcon, speciesIconHtml, waterDrops } from './species.js';
 import { loadTasks, monthName, catIcon } from './tasks.js';
 import { openEncyclopedia } from './encyclopedia.js';
 import {
@@ -116,7 +116,7 @@ export function createTrees(map, deps) {
     if (!canEdit()) return;
     setMove(false);
     $('tree-form').reset();
-    $('tree-species').innerHTML = '<option value="">' + t('tree.choose') + '</option>' + sortedSpecies().map((s) => '<option value="' + s.id + '">' + esc(speciesName(s.id)) + '</option>').join('');
+    $('tree-species').innerHTML = '<option value="">' + t('tree.choose') + '</option>' + sortedSpecies().map((s) => '<option value="' + s.id + '">' + esc(speciesLabel(s.id)) + '</option>').join('');
     $('tree-error').classList.add('hidden');
     $('tree-modal').classList.remove('hidden');
     $('tree-species').focus();

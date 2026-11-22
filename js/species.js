@@ -2,23 +2,23 @@
 import { getLang } from './i18n.js';
 
 export const SPECIES = [
-  { id: 'borovnica', icon: 'icons/borovnica.png', hr: 'Borovnica', en: 'Blueberry', water: 3 },
-  { id: 'breskva', icon: 'icons/peach.png', hr: 'Breskva', en: 'Peach', water: 4 },
-  { id: 'drenak', icon: 'icons/drenak.png', hr: 'Drenak', en: 'Cornelian cherry', water: 2 },
-  { id: 'dud2', emoji: '🍇', hr: 'Dud', en: 'Mulberry', water: 2 },
-  { id: 'glog', icon: 'icons/glog.png', hr: 'Glog', en: 'Hawthorn', water: 1 },
-  { id: 'jabuka', icon: 'icons/apple.png', hr: 'Jabuka', en: 'Apple', water: 3 },
-  { id: 'kivi', emoji: '🥝', hr: 'Kivi', en: 'Kiwi', water: 4 },
-  { id: 'kruska', icon: 'icons/pear.png', hr: 'Kruška', en: 'Pear', water: 3 },
-  { id: 'kupina', icon: 'icons/blackberry.png', hr: 'Kupina', en: 'Blackberry', water: 3 },
-  { id: 'orah', icon: 'icons/orah.png', hr: 'Orah', en: 'Walnut', water: 2 },
-  { id: 'ribizl', icon: 'icons/ribiz.png', hr: 'Ribizl', en: 'Currant', water: 2 },
-  { id: 'smokva', icon: 'icons/fig.png', hr: 'Smokva', en: 'Fig', water: 1 },
-  { id: 'sljiva', icon: 'icons/plum.png', hr: 'Šljiva', en: 'Plum', water: 3 },
-  { id: 'tresnja', icon: 'icons/cherry.png', hr: 'Trešnja', en: 'Sweet cherry', water: 3 },
-  { id: 'vinova_loza', icon: 'icons/grapes.png', hr: 'Vinova loza', en: 'Grapevine', water: 2 },
-  { id: 'visnja', icon: 'icons/visnja.png', hr: 'Višnja', en: 'Sour cherry', water: 3 },
-  { id: 'ostalo', emoji: '🌳', hr: 'Ostalo (stablo, grm…)', en: 'Other (tree, shrub…)', water: 2 }
+  { id: 'borovnica', mark: '🫐', icon: 'icons/borovnica.png', hr: 'Borovnica', en: 'Blueberry', water: 3 },
+  { id: 'breskva', mark: '🍑', icon: 'icons/peach.png', hr: 'Breskva', en: 'Peach', water: 4 },
+  { id: 'drenak', mark: '🌳', icon: 'icons/drenak.png', hr: 'Drenak', en: 'Cornelian cherry', water: 2 },
+  { id: 'dud2', mark: '🌳', emoji: '🍇', hr: 'Dud', en: 'Mulberry', water: 2 },
+  { id: 'glog', mark: '🌳', icon: 'icons/glog.png', hr: 'Glog', en: 'Hawthorn', water: 1 },
+  { id: 'jabuka', mark: '🍎', icon: 'icons/apple.png', hr: 'Jabuka', en: 'Apple', water: 3 },
+  { id: 'kivi', mark: '🥝', emoji: '🥝', hr: 'Kivi', en: 'Kiwi', water: 4 },
+  { id: 'kruska', mark: '🍐', icon: 'icons/pear.png', hr: 'Kruška', en: 'Pear', water: 3 },
+  { id: 'kupina', mark: '🫐', icon: 'icons/blackberry.png', hr: 'Kupina', en: 'Blackberry', water: 3 },
+  { id: 'orah', mark: '🌰', icon: 'icons/orah.png', hr: 'Orah', en: 'Walnut', water: 2 },
+  { id: 'ribizl', mark: '🍓', icon: 'icons/ribiz.png', hr: 'Ribizl', en: 'Currant', water: 2 },
+  { id: 'smokva', mark: '🫠', icon: 'icons/fig.png', hr: 'Smokva', en: 'Fig', water: 1 },
+  { id: 'sljiva', mark: '🍇', icon: 'icons/plum.png', hr: 'Šljiva', en: 'Plum', water: 3 },
+  { id: 'tresnja', mark: '🍒', icon: 'icons/cherry.png', hr: 'Trešnja', en: 'Sweet cherry', water: 3 },
+  { id: 'vinova_loza', mark: '🍇', icon: 'icons/grapes.png', hr: 'Vinova loza', en: 'Grapevine', water: 2 },
+  { id: 'visnja', mark: '🍒', icon: 'icons/visnja.png', hr: 'Višnja', en: 'Sour cherry', water: 3 },
+  { id: 'ostalo', mark: '🌳', emoji: '🌳', hr: 'Ostalo (stablo, grm…)', en: 'Other (tree, shrub…)', water: 2 }
 ];
 
 const BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
@@ -36,6 +36,9 @@ export function sortedSpecies() {
   const list = SPECIES.filter((s) => s.id !== 'ostalo').sort((a, b) => (lang === 'en' ? a.en : a.hr).localeCompare(lang === 'en' ? b.en : b.hr, lang));
   return list.concat([BY_ID.ostalo]);
 }
+
+// Naziv s emojijem (za padajuće izbornike, kao u Horvatima)
+export function speciesLabel(id) { return speciesName(id) + ' ' + (species(id).mark || ''); }
 
 export function speciesIconHtml(id, size = 22) {
   const s = species(id);
