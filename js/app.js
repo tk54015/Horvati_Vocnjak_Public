@@ -26,20 +26,35 @@ const map = L.map('map', { zoomControl: false, maxZoom: MAX_ZOOM, minZoom: 3, sc
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 L.control.scale({ position: 'bottomleft', imperial: false, maxWidth: 140 }).addTo(map);
 
-// Kotačić: jedan korak zuma po pomaku (kao u Horvatima), oko pokazivača
+// Kotačić: svaki pomak = točno jedan korak zuma (kao u Horvatima), oko pokazivača.
+// Pamti se ciljni zum, pa se brzi pomaci i promjena smjera ne gube dok animacija još traje.
 let wheelAcc = 0;
-let wheelAt = 0;
+let wheelTarget = null;
+let wheelPoint = null;
 map.getContainer().addEventListener('wheel', (e) => {
   e.preventDefault();
-  wheelAcc += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY;
-  const now = Date.now();
-  if (Math.abs(wheelAcc) < 40 || now - wheelAt < 90) return;
+  const d = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+  if (!d) return;
+  if (Math.sign(d) !== Math.sign(wheelAcc)) wheelAcc = 0; // novi smjer: zaboravi ostatak starog
+  wheelAcc += d;
+  if (Math.abs(wheelAcc) < 40) return; // touchpad: skupi male pomake u jedan korak
   const step = wheelAcc > 0 ? -1 : 1;
   wheelAcc = 0;
-  wheelAt = now;
-  const target = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), map.getZoom() + step));
-  if (target !== map.getZoom()) map.setZoomAround(map.mouseEventToContainerPoint(e), target);
+  const base = wheelTarget !== null ? wheelTarget : map.getZoom();
+  const target = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), base + step));
+  if (target === base) return;
+  wheelTarget = target;
+  wheelPoint = map.mouseEventToContainerPoint(e);
+  map.setZoomAround(wheelPoint, target);
 }, { passive: false });
+let wheelRetries = 0;
+map.on('zoomend', () => {
+  if (wheelTarget === null) return;
+  if (++wheelRetries > 8) { wheelTarget = null; wheelRetries = 0; return; }
+  // Leaflet zanemari novi zum dok traje animacija – nastavi do cilja
+  if (map.getZoom() !== wheelTarget) map.setZoomAround(wheelPoint, wheelTarget);
+  else { wheelTarget = null; wheelRetries = 0; }
+});
 
 const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
   maxZoom: MAX_ZOOM, maxNativeZoom: 19,
