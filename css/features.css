@@ -218,3 +218,10 @@ body.ruler-mode #map, body.ruler-mode .leaflet-interactive { cursor: crosshair !
     #report-modal .scroll-body { overflow: visible; }
     #report-modal .big-head button, #report-modal .tasks-nav button { display: none !important; }
 }
+
+/* prazna podloga (voćnjak bez lokacije) */
+body.blank-map #map { background: #fff; }
+body.blank-map .leaflet-control-attribution { display: none; }
+.ep-loc { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0 8px; padding: 6px 8px; border-radius: 8px; background: #fff; border: 1px solid #d3e5c8; font-size: 12px; }
+.ep-loc .ep-btn { white-space: nowrap; }
+body.blank-map path.hv-shape { stroke: #1b5e20; fill: #008000; fill-opacity: 0.85; }

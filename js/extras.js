@@ -270,7 +270,7 @@ function dayLabel(iso) {
 async function renderWeather() {
   const o = state.orchard;
   const body = $('weather-body');
-  if (!o || !o.center) { body.innerHTML = '<p class="muted">' + t('weather.noCenter') + '</p>'; return; }
+  if (!o || !o.center || !o.boundary || o.boundary.located === false) { body.innerHTML = '<p class="muted">' + t(o && o.boundary && o.boundary.located === false ? 'weather.noLocation' : 'weather.noCenter') + '</p>'; return; }
   body.innerHTML = '<p class="muted">' + t('weather.loading') + '</p>';
   let days;
   try { days = await fetchWeather(Number(o.center[0]), Number(o.center[1])); } catch (e) { body.innerHTML = '<p class="form-error">⚠️ ' + t('weather.error', { msg: e.message }) + '</p>'; return; }

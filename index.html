@@ -10,8 +10,8 @@
   <link rel="apple-touch-icon" href="icons/app/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=3a">
-  <link rel="stylesheet" href="css/features.css?v=3a">
+  <link rel="stylesheet" href="css/style.css?v=3b">
+  <link rel="stylesheet" href="css/features.css?v=3b">
 </head>
 <body>
   <div id="map"></div>
@@ -41,23 +41,20 @@
 
   <!-- izbornik -->
   <nav id="side-menu" class="hidden">
-    <button type="button" class="menu-item edit-only" id="menu-add" data-i18n="menu.addTree"></button>
-    <button type="button" class="menu-item edit-only" id="menu-move" data-i18n="menu.move"></button>
-    <button type="button" class="menu-item edit-only" id="menu-bed" data-i18n="menu.bed"></button>
-    <hr>
-    <button type="button" class="menu-item view" id="menu-tasks" data-i18n="menu.tasks"></button>
     <button type="button" class="menu-item view" id="menu-weather" data-i18n="menu.weather"></button>
+    <button type="button" class="menu-item view" id="menu-yield" data-i18n="menu.yield"></button>
     <button type="button" class="menu-item view" id="menu-enc" data-i18n="menu.encyclopedia"></button>
-    <button type="button" class="menu-item view" id="menu-spray" data-i18n="menu.spray"></button>
-    <hr>
     <button type="button" class="menu-item view" id="menu-filter" data-i18n="menu.filter"></button>
     <button type="button" class="menu-item view" id="menu-ruler" data-i18n="menu.ruler"></button>
-    <button type="button" class="menu-item view" id="menu-sat" data-i18n="menu.satellite"></button>
-    <hr>
-    <button type="button" class="menu-item view" id="menu-yield" data-i18n="menu.yield"></button>
+    <button type="button" class="menu-item view" id="menu-tasks" data-i18n="menu.tasks"></button>
     <button type="button" class="menu-item view" id="menu-report" data-i18n="menu.report"></button>
     <button type="button" class="menu-item owner-only" id="menu-wallet" data-i18n="menu.wallet"></button>
     <hr class="edit-only">
+    <button type="button" class="menu-item edit-only" id="menu-bed" data-i18n="menu.bed"></button>
+    <button type="button" class="menu-item edit-only" id="menu-add" data-i18n="menu.addTree"></button>
+    <button type="button" class="menu-item edit-only" id="menu-move" data-i18n="menu.move"></button>
+    <hr>
+    <button type="button" class="menu-item view" id="menu-sat" data-i18n="menu.satellite"></button>
     <button type="button" class="menu-item edit-only" id="menu-edit" data-i18n="menu.editBoundary"></button>
   </nav>
 
@@ -100,6 +97,7 @@
   <aside id="edit-panel" class="hidden">
     <h2 data-i18n="edit.title">Granica zemljišta</h2>
     <div class="ep-area"><span data-i18n="edit.area">Površina</span>: <b id="edit-area">–</b></div>
+    <div class="ep-loc"><span id="loc-text"></span><button id="loc-btn" type="button" class="ep-btn"></button></div>
     <div class="method-tabs" role="tablist">
       <button type="button" class="method-tab" data-method="rect" data-i18n="method.rect">Pravokutnik</button>
       <button type="button" class="method-tab" data-method="draw" data-i18n="method.draw">Iscrtano</button>
@@ -179,9 +177,7 @@
       <h2 data-i18n="new.title">Novi voćnjak</h2>
       <label for="new-name" data-i18n="new.name">Naziv voćnjaka</label>
       <input id="new-name" type="text" maxlength="60" data-i18n-ph="new.namePh">
-      <label for="new-address" data-i18n="new.address">Mjesto ili adresa</label>
-      <input id="new-address" type="text" maxlength="120" data-i18n-ph="new.addressPh">
-      <small data-i18n="new.addressHint"></small>
+      <small data-i18n="new.privacy"></small>
       <div id="new-error" class="form-error hidden" role="alert"></div>
       <div class="card-foot">
         <button id="new-cancel" type="button" class="btn-secondary" data-i18n="common.cancel">Odustani</button>
@@ -197,19 +193,19 @@
       <p data-i18n="howto.intro"></p>
       <div class="howto-grid">
         <div class="howto-card">
-          <h3 data-i18n="howto.rect.title"></h3>
-          <p data-i18n="howto.rect.text"></p>
-          <button type="button" class="btn-primary" data-choose="rect" data-i18n="howto.choose">Odaberi</button>
-        </div>
-        <div class="howto-card">
-          <h3 data-i18n="howto.draw.title"></h3>
-          <p data-i18n="howto.draw.text"></p>
-          <button type="button" class="btn-primary" data-choose="draw" data-i18n="howto.choose">Odaberi</button>
+          <h3 data-i18n="howto.locate.title"></h3>
+          <p data-i18n="howto.locate.text"></p>
+          <button type="button" class="btn-primary" data-choose="locate" data-i18n="howto.choose">Odaberi</button>
         </div>
         <div class="howto-card">
           <h3 data-i18n="howto.kml.title"></h3>
           <p data-i18n="howto.kml.text"></p>
           <button type="button" class="btn-primary" data-choose="kml" data-i18n="howto.choose">Odaberi</button>
+        </div>
+        <div class="howto-card">
+          <h3 data-i18n="howto.shape.title"></h3>
+          <p data-i18n="howto.shape.text"></p>
+          <button type="button" class="btn-primary" data-choose="shape" data-i18n="howto.choose">Odaberi</button>
         </div>
       </div>
       <div class="card-foot"><button id="howto-close" type="button" class="btn-secondary" data-i18n="common.close">Zatvori</button></div>
@@ -363,6 +359,6 @@
   <div id="toast" class="hidden" role="status"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="js/app.js?v=3a"></script>
+  <script type="module" src="js/app.js?v=3b"></script>
 </body>
 </html>

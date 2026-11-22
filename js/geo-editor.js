@@ -1,7 +1,7 @@
 // Uređivač granice zemljišta: pravokutnik (ručice), iscrtavanje točaka ili KML (uređivi poligon).
 import { rectCorners, rectHandle, toLocal, fromLocal, rotate, polygonAreaM2 } from './geo.js';
 
-const STYLE = { color: '#ffffff', weight: 2.5, fillColor: '#4caf50', fillOpacity: 0.28, dashArray: '6 6' };
+const STYLE = { color: '#ffffff', weight: 2.5, fillColor: '#4caf50', fillOpacity: 0.28, dashArray: '6 6', className: 'hv-shape' };
 const DONE_STYLE = { color: '#c8e6c9', weight: 2, fillColor: '#4caf50', fillOpacity: 0.18 };
 
 function handleIcon(cls, text) {
