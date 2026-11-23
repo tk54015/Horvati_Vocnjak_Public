@@ -2,7 +2,7 @@
 // - Vlastite datoteke (HTML, JS, CSS, data/*.json): prvo mreža, bez interneta zadnja spremljena verzija.
 // - Leaflet i ostale biblioteke s CDN-a: iz spremnika, osvježe se u pozadini.
 // - Supabase (prijava i podaci), karte i prognoza: uvijek samo mreža.
-const CACHE = 'hvj-v3f';
+const CACHE = 'hvj-v3g';
 const PRECACHE = ['/', '/index.html', '/manifest.webmanifest', '/icons/tree.svg', '/icons/app/icon-192.png', '/icons/app/icon-512.png'];
 const CDN = ['unpkg.com', 'cdn.jsdelivr.net'];
 

@@ -126,7 +126,7 @@ function sprayHtml() {
       .map((g) => '<li>' + speciesIconHtml(g.s.id, 16) + ' <b>' + esc(g.s.naziv) + (weighted ? ' (' + plural(g.w, 'spray.tree') + ')' : '') + ':</b> ' + esc(g.names.join(', ')) + '</li>').join('');
   };
   let h = '<header class="enc-head"><span class="sp-emoji" style="font-size:38px">🧴</span><div><h2>' + t('spray.title') + '</h2><div class="muted">' +
-    (weighted ? t('spray.sub', { trees: plural(trees, 'spray.tree'), n: species.length, probs: plural(sprayList.length, 'spray.prob') }) : t('spray.subEmpty')) + '</div></div></header>';
+    (weighted ? t('spray.sub', { trees: plural(trees, 'spray.tree'), sp: plural(species.length, 'spray.sp'), probs: plural(sprayList.length, 'spray.prob') }) : t('spray.subEmpty')) + '</div></div></header>';
   h += '<div class="spray-summary"><div class="spray-big"><b>' + basic.length + '</b><span>' + t('spray.basic') + '</span></div>' +
     '<div class="spray-big"><b>' + pct(basicW) + ' %</b><span>' + t('spray.basicCover') + '</span></div>' +
     '<div class="spray-big ok"><b>' + noSpray.length + '</b><span>' + t('spray.noSprayCover') + '</span></div></div>';
