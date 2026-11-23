@@ -83,14 +83,17 @@ function sprayHtml() {
   if (!cfg) return '<p class="muted">–</p>';
   const c = countsFn();
   let species = fruit.vrste.filter((v) => v.id !== 'ostalo' && c[v.id] > 0);
-  if (!species.length) species = fruit.vrste.filter((v) => v.id !== 'ostalo');
+  const weighted = species.length > 0;
+  if (!weighted) species = fruit.vrste.filter((v) => v.id !== 'ostalo');
+  const trees = weighted ? species.reduce((n, v) => n + c[v.id], 0) : 0;
+  // svaki problem nosi težinu = broj stabala te vrste (prazna karta: 1)
   const list = [];
   species.forEach((v) => {
-    (v.bolesti || []).forEach((b) => list.push({ species: v, problem: b, tip: 'bolesti' }));
-    (v.stetnici || []).forEach((b) => list.push({ species: v, problem: b, tip: 'stetnici' }));
+    const w = weighted ? c[v.id] : 1;
+    (v.bolesti || []).forEach((b) => list.push({ species: v, problem: b, tip: 'bolesti', w }));
+    (v.stetnici || []).forEach((b) => list.push({ species: v, problem: b, tip: 'stetnici', w }));
   });
   const probs = list.filter((p) => p.problem.naziv !== 'Rijetko');
-  const total = probs.length;
   const match = (prep, p) => {
     const text = p.problem.rjesenje || '';
     if (!new RegExp(prep.kljuc, 'i').test(text)) return false;
@@ -100,26 +103,47 @@ function sprayHtml() {
     return true;
   };
   const sprayRe = new RegExp(cfg.prskanjeKljuc, 'i');
+  // u postotke ulaze samo problemi koji traže prskanje
+  const sprayList = probs.filter((p) => sprayRe.test(p.problem.rjesenje || ''));
   const noSpray = probs.filter((p) => !sprayRe.test(p.problem.rjesenje || ''));
+  const weight = (arr) => arr.reduce((n, p) => n + p.w, 0);
+  const treesOf = (arr) => { const seen = new Set(); let n = 0; arr.forEach((p) => { if (!seen.has(p.species.id)) { seen.add(p.species.id); n += p.w; } }); return n; };
+  const total = weight(sprayList);
+  const pct = (n) => (total ? Math.round(n / total * 100) : 0);
   const preps = cfg.popis.map((prep) => ({ prep, hits: probs.filter((p) => match(prep, p)) }));
   const basic = preps.filter((x) => x.prep.osnovni);
-  const basicHits = probs.filter((p) => basic.some((x) => x.hits.includes(p))).length;
-  const pct = (n) => (total ? Math.round(n / total * 100) : 0);
+  const basicW = weight(sprayList.filter((p) => basic.some((x) => x.hits.includes(p))));
+  const plural = (n, key) => {
+    if (getLang() === 'en') return t(key + (n === 1 ? '1' : '5'), { n });
+    const m10 = n % 10, m100 = n % 100;
+    return t(key + (m10 === 1 && m100 !== 11 ? '1' : (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) ? '2' : '5'), { n });
+  };
+  const onTrees = (arr) => (weighted ? ' ' + t('spray.on', { trees: plural(treesOf(arr), 'spray.tree') }) : '');
   const group = (hits) => {
     const by = {};
-    hits.forEach((p) => { (by[p.species.id] = by[p.species.id] || { s: p.species, names: [] }).names.push(p.problem.naziv); });
-    return Object.values(by).sort((a, b) => a.s.naziv.localeCompare(b.s.naziv, 'hr')).map((g) => '<li>' + speciesIconHtml(g.s.id, 16) + ' <b>' + esc(g.s.naziv) + ':</b> ' + esc(g.names.join(', ')) + '</li>').join('');
+    hits.forEach((p) => { (by[p.species.id] = by[p.species.id] || { s: p.species, w: p.w, names: [] }).names.push(p.problem.naziv); });
+    return Object.values(by).sort((x, y) => (y.w - x.w) || x.s.naziv.localeCompare(y.s.naziv, 'hr'))
+      .map((g) => '<li>' + speciesIconHtml(g.s.id, 16) + ' <b>' + esc(g.s.naziv) + (weighted ? ' (' + plural(g.w, 'spray.tree') + ')' : '') + ':</b> ' + esc(g.names.join(', ')) + '</li>').join('');
   };
-  let h = '<header class="enc-head"><span class="sp-emoji" style="font-size:38px">🧴</span><div><h2>' + t('spray.title') + '</h2><div class="muted">' + t('spray.sub', { n: species.length, p: total }) + '</div></div></header>';
+  let h = '<header class="enc-head"><span class="sp-emoji" style="font-size:38px">🧴</span><div><h2>' + t('spray.title') + '</h2><div class="muted">' +
+    (weighted ? t('spray.sub', { trees: plural(trees, 'spray.tree'), n: species.length, probs: plural(sprayList.length, 'spray.prob') }) : t('spray.subEmpty')) + '</div></div></header>';
   h += '<div class="spray-summary"><div class="spray-big"><b>' + basic.length + '</b><span>' + t('spray.basic') + '</span></div>' +
-    '<div class="spray-big"><b>' + pct(basicHits) + ' %</b><span>' + t('spray.basicCover', { n: basicHits, p: total }) + '</span></div>' +
-    '<div class="spray-big ok"><b>' + pct(noSpray.length) + ' %</b><span>' + t('spray.noSprayCover', { n: noSpray.length }) + '</span></div></div>';
+    '<div class="spray-big"><b>' + pct(basicW) + ' %</b><span>' + t('spray.basicCover') + '</span></div>' +
+    '<div class="spray-big ok"><b>' + noSpray.length + '</b><span>' + t('spray.noSprayCover') + '</span></div></div>';
   h += '<p>' + esc(cfg.uvod) + '</p>';
+  h += '<p class="muted"><small>' + t(weighted ? 'spray.howCounted' : 'spray.howCountedEmpty') + '</small></p>';
   preps.forEach((x) => {
     const p = x.prep;
+    let cover = '';
+    if (p.id === 'pomagala') {
+      if (x.hits.length) cover = '<div class="spray-cover">' + t('spray.used', { probs: plural(x.hits.length, 'spray.prob') }) + onTrees(x.hits) + '</div>';
+    } else {
+      const w = weight(x.hits);
+      cover = '<div class="spray-cover"><span class="spray-bar"><i style="width:' + Math.max(2, pct(w)) + '%"></i></span><b>' + pct(w) + ' %</b>&nbsp;' +
+        t('spray.helps', { probs: plural(x.hits.length, 'spray.prob') }) + onTrees(x.hits) + '</div>';
+    }
     h += '<section class="spray-card' + (p.osnovni ? ' basic' : '') + '"><div class="spray-head"><span class="spray-emoji">' + p.emoji + '</span><div><h3>' + esc(p.naziv) +
-      ' <span class="badge ' + (p.osnovni ? 'first' : 'moved') + '">' + t(p.osnovni ? 'spray.isBasic' : 'spray.asNeeded') + '</span></h3>' +
-      (p.id !== 'pomagala' || x.hits.length ? '<div class="spray-cover"><span class="spray-bar"><i style="width:' + Math.max(2, pct(x.hits.length)) + '%"></i></span>' + t('spray.helps', { n: x.hits.length, p: total, pct: pct(x.hits.length) }) + '</div>' : '') + '</div></div>' +
+      ' <span class="badge ' + (p.osnovni ? 'first' : 'moved') + '">' + t(p.osnovni ? 'spray.isBasic' : 'spray.asNeeded') + '</span></h3>' + cover + '</div></div>' +
       '<div class="enc-row"><span class="tag see">' + t('spray.what') + '</span><p>' + esc(p.stoJe) + '</p></div>' +
       '<div class="enc-row"><span class="tag fix">' + t('spray.when') + '</span><p>' + esc(p.kada) + '</p></div>' +
       '<div class="enc-row"><span class="tag warn">' + t('spray.careful') + '</span><p>' + esc(p.pazi) + '</p></div>' +
